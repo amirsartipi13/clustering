@@ -32,9 +32,10 @@ def make_plot(column1, column2, address, col1_name, col2_name):
     plt.close()
 
 def run_plots():
-    names = ['num_comments', 'num_reactions',
-               'num_shares', 'num_likes', 'num_loves', 'num_wows', 'num_hahas',
-               'num_sads', 'num_angrys']
+    names = ['status_type', 'num_comments', 'num_reactions',
+            'num_shares', 'num_likes', 'num_loves', 'num_wows', 'num_hahas',
+            'num_sads', 'num_angrys']
+
     # names = ['num_comments']
     result = make_sub_set(names, 2)
     for item in result:

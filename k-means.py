@@ -3,9 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from Sql import SqlManager
-from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA as skelearnPca
-from sphinx.addnodes import not_smartquotable
+from sklearn.metrics import davies_bouldin_score
+import  pandas as pd
 
 def get_info(columns):
     sql_manager = SqlManager("information.sqlite")
@@ -16,8 +16,6 @@ def get_info(columns):
         pass
     query = generate_query(columns)
     data = sql_manager.crs.execute(query).fetchall()
-    # scaler = StandardScaler()
-    # data = scaler.fit_transform(data)
     return data
 
 
@@ -45,18 +43,15 @@ def ellbow(cluster_count_test, max_iter):
         sql_manager.conn.commit()
     except:
         pass
-    columns = ['num_comments', 'num_reactions',
-               'num_shares', 'num_likes', 'num_loves', 'num_wows', 'num_hahas',
-               'num_sads', 'num_angrys']
+    columns = ['status_type', 'num_comments', 'num_reactions',
+            'num_shares', 'num_likes', 'num_loves', 'num_wows', 'num_hahas',
+            'num_sads', 'num_angrys']
     # columns = ['num_comments', 'num_likes']
 
     query = generate_query(columns)
     column_value = sql_manager.crs.execute(query).fetchall()
-
-    # scaler = StandardScaler()
-    # column_value = scaler.fit_transform(column_value)
-
     wcss = []
+
     for i in range(1, cluster_count_test + 1):
         kmeans = KMeans(n_clusters=i, init='k-means++', n_init=50, max_iter=max_iter, random_state=0)
         kmeans = kmeans.fit(column_value)
@@ -67,39 +62,48 @@ def ellbow(cluster_count_test, max_iter):
 def find_best_col(data):
     pca = skelearnPca(n_components=2)
     data = pca.fit_transform(data)
+    print(data)
     return data
 
 def k_means(cluster_count, max_iter):
-    columns = ['num_comments', 'num_reactions',
+    columns = ['status_type','num_comments', 'num_reactions',
                'num_shares', 'num_likes', 'num_loves', 'num_wows', 'num_hahas',
                'num_sads', 'num_angrys']
 
     # columns = ['num_comments', 'num_likes']
     data = get_info(columns)
-    best_data = find_best_col(data)
+    bes_data = find_best_col(data)
+    data = pd.DataFrame(data, columns=columns)
 
-    print(best_data)
     kmeans = KMeans(n_clusters=cluster_count, init='k-means++', n_init=50, max_iter=max_iter, random_state=0)
-    kmeans = kmeans.fit(best_data)
+    kmeans = kmeans.fit(bes_data)
 
-    y_pred = kmeans.predict(best_data)  # predicted labels
+    y_pred = kmeans.predict(bes_data)  # predicted labels
     centroids = kmeans.cluster_centers_
 
-    # Plot scatter of datapoints with their clusters
-    plt.scatter(best_data[y_pred == 0, 0], best_data[y_pred == 0, 1], s=100, c='yellow', label='Cluster 1')
-    plt.scatter(best_data[y_pred == 1, 0], best_data[y_pred == 1, 1], s=100, c='blue', label='Cluster 2')
-    plt.scatter(best_data[y_pred == 2, 0], best_data[y_pred == 2, 1], s=100, c='purple', label='Cluster 3')
-    plt.scatter(best_data[y_pred == 3, 0], best_data[y_pred == 3, 1], s=100, c='cyan', label='Cluster 4')
-    plt.scatter(best_data[y_pred == 4, 0], best_data[y_pred == 4, 1], s=100, c='green', label='Cluster 5')
+    dbs = davies_bouldin_score(bes_data, y_pred)
 
-    plt.scatter(centroids[:, 0], centroids[:, 1], s=200, c='red', marker='d', label='Centroids')
+    X = []
+    Y = []
 
+    for xy in bes_data:
+        X.append(xy[0])
+        Y.append(xy[1])
+
+    print(len(X))
+    plt.scatter(X, Y, c=y_pred)
+    x_centers = [x[0] for x in centroids]
+    y_centers = [y[1] for y in centroids]
+    plt.scatter(x_centers, y_centers, c="r", marker="+", s=200)
     plt.xlabel('best 1')
     plt.ylabel('best 2')
+
     plt.legend()
+    plt.savefig('outs\\k-means\\'+'max iter '+str(max_iter)+' and cluster count '+str(cluster_count)+'.png')
     plt.show()
+    print('davies_bouldin_score for k-means is : '+str(dbs))
 
 if __name__ == "__main__":
 
-    # ellbow(cluster_count_test=15, max_iter=1)
-    k_means(cluster_count=5, max_iter=10)
+    #ellbow(cluster_count_test=15, max_iter=10)
+    k_means(cluster_count=4, max_iter=30)

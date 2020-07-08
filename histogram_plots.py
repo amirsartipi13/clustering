@@ -55,14 +55,14 @@ def make_plot(data, address):
 
 
 def run_plots():
-    names = ['num_comments', 'num_reactions',
-               'num_shares', 'num_likes', 'num_loves', 'num_wows', 'num_hahas',
-               'num_sads', 'num_angrys']
+    names =['status_type', 'num_comments', 'num_reactions',
+            'num_shares', 'num_likes', 'num_loves', 'num_wows', 'num_hahas',
+            'num_sads', 'num_angrys']
+
     # names = ['num_comments']
     for col in names:
         data = get_information(col)
         make_plot(data, 'outs\\histogram_plots\\' + col)
-
 
 if __name__ == '__main__':
     run_plots()

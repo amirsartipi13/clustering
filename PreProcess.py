@@ -4,49 +4,9 @@ import numpy as np
 import sqlite3
 from Sql import SqlManager
 from sklearn.preprocessing import StandardScaler
-
-
-def drop_numerical_outliers(input_df, col):
-    """
-    inputs: a data frame
-    outputs: outliers data frame and clean data
-    Description:
-            for all numerical attribute if a row has a outlier data delete it and append to outlier data frame
-            this function work with IQR method
-    """
-    outliers_index = set()
-    for header in input_df.columns:
-        print(header, " checked")
-        df = input_df[header]
-        if df.dtype == "int64":
-            mean = df.mean()
-            Q1 = df.quantile(0.25)
-            Q3 = df.quantile(0.75)
-            IQR = Q3 - Q1
-            if IQR == 0:
-                continue
-            trueList = ~((df < (Q1 - 1.5 * IQR)) | (df > (Q3 + 1.5 * IQR)))
-            for index, is_ok in enumerate(trueList.values.tolist()):
-                if not is_ok:
-                    outliers_index.add(index)
-
-    outliers_index = list(outliers_index)
-    outliers_list = []
-    main_list = []
-    values = input_df.values
-    for i in range(len(values)):
-        if i in outliers_index:
-            outliers_list.append(list(values[i]))
-        else:
-            main_list.append(list(values[i]))
-    outliers_df = DataFrame(outliers_list,
-                            columns=col)
-
-    main_df = DataFrame(main_list,
-                        columns=col)
-
-    return outliers_df, main_df
-
+from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import RobustScaler
 
 def pre_processing(df: DataFrame):
     """
@@ -69,41 +29,44 @@ def pre_processing(df: DataFrame):
                 save information in database
 
     """
-    col1 = ['status_id', 'status_type', 'status_published', 'num_comments', 'num_reactions',
-                                     'num_shares', 'num_likes', 'num_loves', 'num_wows', 'num_hahas',
-                                     'num_sads', 'num_angrys']
-    col2 = ['num_comments', 'num_reactions',
+    col1 = ['status_type', 'num_comments', 'num_reactions',
             'num_shares', 'num_likes', 'num_loves', 'num_wows', 'num_hahas',
-                                     'num_sads', 'num_angrys']
+            'num_sads', 'num_angrys']
+
+
     sql_manager = SqlManager("information.sqlite")
     df.to_sql(name="before_process", con=sql_manager.conn, if_exists="replace")
+
+    # drop duplicates if any.
+    df.drop_duplicates(inplace=True)
+
+    # check for missing value
     missing_data_df = missing_data(df)
     missing_data_df.to_sql(name="missing_information", con=sql_manager.conn, if_exists="replace")
 
-    main_df = df.drop(columns=['Column1', 'Column2', 'Column3', 'Column4'])
-    main_df1 = df.drop(columns=['status_id', 'status_type', 'status_published', 'Column1', 'Column2', 'Column3', 'Column4'])
+    # drop nonless columns
+    main_df = df.drop(
+        columns=['status_id', 'status_published', 'Column1', 'Column2', 'Column3', 'Column4'])
 
-    print(main_df1)
-    outliers_df, main_df = drop_numerical_outliers(main_df, col1)
-    outliers_df.to_sql(name="outliers", con=SqlManager("information.sqlite").conn, if_exists="replace", index=False)
+    # convert status_type to int value
+    le = LabelEncoder()
+    main_df['status_type'] = le.fit_transform(main_df['status_type'])
+
+    # scale data
+    main_df = StandardScaler().fit_transform(main_df)
+    main_df = pd.DataFrame(main_df, columns=col1)
+
+    print(main_df['status_type'])
+
+    # store clean data in sql
     main_df.to_sql(name="information", con=SqlManager("information.sqlite").conn, if_exists="replace", index=False)
 
-    outliers_df1, main_df1 = drop_numerical_outliers(main_df1, col2)
-    outliers_df1.to_sql(name="outliersscale", con=SqlManager("information.sqlite").conn, if_exists="replace", index=False)
-    main_df1.to_sql(name="informationscale", con=SqlManager("information.sqlite").conn, if_exists="replace", index=False)
-
-    print(main_df.shape)
-
-    stscaler = StandardScaler().fit(main_df1)
-    main_df1 = stscaler.transform(main_df1)
-
-    main_df1 = DataFrame(main_df1)
-
-    main_df1.describe().to_sql(name="describe_scale", con=sql_manager.conn, if_exists='replace')
+    # store data set information in sql
     main_df.describe().to_sql(name="describe", con=sql_manager.conn, if_exists='replace')
 
     with open("outs\\dtypes.txt", "w") as file:
         file.write(str(main_df.dtypes))
+
     return main_df
 
 

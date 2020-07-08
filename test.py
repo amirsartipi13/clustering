@@ -1,69 +1,64 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sun Sep  9 18:13:51 2018
-@author: Mohammad Doosti Lakhani
-"""
+import numpy as np # linear algebra
+import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
+import matplotlib.pyplot as plt # for data visualization
+import seaborn as sns # for statistical data visualization
+from sklearn.decomposition import PCA as skelearnPca
 
-# import libraries
-import numpy as np
-import matplotlib.pyplot as plt
-import pandas as pd
+# Input data files are available in the "../input/" directory.
+# For example, running this (by clicking run or pressing Shift+Enter) will list all files under the input directory
 
-# Importing dataset
-dataset = pd.read_csv('Mall_Customers.csv')
-x = dataset.iloc[:,[3,4]].values
 
-# Finding the best value of CLUSTER_COUNT using Elbow method
+csv_file = "FaceBook-dataset.csv"
+df = pd.read_csv(csv_file, skipinitialspace=True)
+df.drop(['Column1', 'Column2', 'Column3', 'Column4'], axis=1, inplace=True)
+df.drop(['status_id', 'status_published'], axis=1, inplace=True)
+df.drop_duplicates(inplace=True)
+
+x = df
+y = df['status_type']
+
+from sklearn.preprocessing import LabelEncoder
+
+le = LabelEncoder()
+
+x['status_type'] = le.fit_transform(x['status_type'])
+
+y = le.transform(y)
+cols = x.columns
+from sklearn.preprocessing import MinMaxScaler
+
+ms = MinMaxScaler()
+
+x = ms.fit_transform(x)
+x = pd.DataFrame(x, columns=[cols])
+
 from sklearn.cluster import KMeans
-cluster_count_test = 10
-wcss = []
 
-for i in range(1,cluster_count_test+1):
-    kmeans = KMeans(n_clusters=i, init='k-means++',n_init=50,max_iter=300,random_state=0)
-    kmeans = kmeans.fit(x)
-    wcss.append(kmeans.inertia_)
 
-# Plot wccs values wrt number of clusters
-plt.plot(np.arange(1,11),wcss)
-plt.title('ELbow of KMeans')
-plt.xlabel('Number of Clusters')
-plt.ylabel('WCCS value')
-plt.show()
+kmeans = KMeans(n_clusters=4,random_state=0)
 
-# Applying kmeans with optimal number of clusters gained by Elbow method
-cluster_count = 5
-kmeans = KMeans(n_clusters=cluster_count, init='k-means++',n_init=50,max_iter=300,random_state=0)
-kmeans = kmeans.fit(x)
+kmeans.fit(x)
 
-y_pred = kmeans.predict(x) # predicted labels
+y_pred = kmeans.labels_
+
+# check how many of the samples were correctly labeled
+
+correct_labels = sum(y == y_pred)
 centroids = kmeans.cluster_centers_
 
+print("Result: %d out of %d samples were correctly labeled." % (correct_labels, y.size))
 
-# Plot scatter of datapoints with their clusters
-plt.scatter(x[y_pred==0,0],x[y_pred==0,1],s=100, c='yellow',label = 'Cluster 1')
-plt.scatter(x[y_pred==1,0],x[y_pred==1,1],s=100, c='blue',label = 'Cluster 2')
-plt.scatter(x[y_pred==2,0],x[y_pred==2,1],s=100, c='purple',label = 'Cluster 3')
-plt.scatter(x[y_pred==3,0],x[y_pred==3,1],s=100, c='cyan',label = 'Cluster 4')
-plt.scatter(x[y_pred==4,0],x[y_pred==4,1],s=100, c='green',label = 'Cluster 5')
-plt.scatter(centroids[:,0],centroids[:,1],s=200,c='red',marker= 'd',label = 'Centroids')
-plt.title('Clusters with wccs='+str(wcss[4]))
-plt.xlabel('Income (k$)')
-plt.ylabel('Spending Score (1-100)')
+print('Accuracy score: {0:0.2f}'. format(correct_labels/float(y.size)))
+pca = skelearnPca(n_components=2)
+bes_data = pca.fit_transform(x)
+plt.scatter(bes_data[y_pred == 0, 0], bes_data[y_pred == 0, 1], s=100, c='yellow', label='Cluster 1')
+plt.scatter(bes_data[y_pred == 1, 0], bes_data[y_pred == 1, 1], s=100, c='blue', label='Cluster 2')
+plt.scatter(bes_data[y_pred == 2, 0], bes_data[y_pred == 2, 1], s=100, c='purple', label='Cluster 3')
+plt.scatter(bes_data[y_pred == 3, 0], bes_data[y_pred == 3, 1], s=100, c='cyan', label='Cluster 4')
+
+plt.scatter(centroids[:, 0], centroids[:, 1], s=200, c='red', marker='d', label='Centroids')
+
+plt.xlabel('best 1')
+plt.ylabel('best 2')
 plt.legend()
 plt.show()
-
-def malls():
-    sql_manager = SqlManager("information.sqlite")
-
-    try:
-        sql_manager.crs.execute("delete from encoding_guide")
-        sql_manager.conn.commit()
-    except:
-        pass
-    query = 'select status_id from before_process'
-    column_value = sql_manager.crs.execute(query).fetchall()
-    malls = set()
-    for item in column_value:
-        print(item[0].split('_'))
-        malls.add(item[0].split('_')[0])
-
